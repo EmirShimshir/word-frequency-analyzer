@@ -59,11 +59,6 @@ func (s *DefaultChunkSplitter) SplitFile(path string) ([][]byte, error) {
 			}
 		}
 
-		// trim правые пробелы
-		for split > start && isSpace(data[split-1]) {
-			split--
-		}
-
 		chunks = append(chunks, data[start:split])
 
 		// сдвигаем старт: пропускаем пробелы

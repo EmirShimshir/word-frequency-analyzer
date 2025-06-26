@@ -6,8 +6,8 @@ import (
 
 	"word-frequency-analyzer/internal/counter"
 	"word-frequency-analyzer/internal/extractor"
+	"word-frequency-analyzer/internal/models"
 	"word-frequency-analyzer/internal/splitter"
-	"word-frequency-analyzer/pkg/models"
 )
 
 // Processor обрабатывает файлы параллельно
