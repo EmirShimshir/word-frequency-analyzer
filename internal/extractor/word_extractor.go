@@ -5,25 +5,20 @@ import (
 	"strconv"
 )
 
-// WordExtractor извлекает слова из текста
-type WordExtractor interface {
-	ExtractWords(text []byte) []string
-}
-
 // RegexWordExtractor извлекает слова с помощью регулярных выражений
-type RegexWordExtractor struct {
+type RegexWordExtractorImpl struct {
 	re *regexp.Regexp
 }
 
 // NewRegexWordExtractor создаёт экстрактор слов с фиксированной минимальной длиной
-func NewRegexWordExtractor(minLength int) *RegexWordExtractor {
+func NewRegexWordExtractor(minLength int) *RegexWordExtractorImpl {
 	pattern := "(?i)[a-zа-я]{" + strconv.Itoa(minLength) + ",}"
-	return &RegexWordExtractor{
+	return &RegexWordExtractorImpl{
 		re: regexp.MustCompile(pattern),
 	}
 }
 
 // ExtractWords извлекает слова из текста с минимальной длиной
-func (e *RegexWordExtractor) ExtractWords(text []byte) []string {
+func (e *RegexWordExtractorImpl) ExtractWords(text []byte) []string {
 	return e.re.FindAllString(string(text), -1)
 }
