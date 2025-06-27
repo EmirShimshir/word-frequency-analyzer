@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"runtime"
+
 	"word-frequency-analyzer/internal/extractor"
 	"word-frequency-analyzer/internal/provider"
 	"word-frequency-analyzer/internal/reader"
