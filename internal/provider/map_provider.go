@@ -1,7 +1,6 @@
 package provider
 
 import (
-	"fmt"
 	"sort"
 	"word-frequency-analyzer/internal/models/entities"
 	"word-frequency-analyzer/internal/models/ports"
@@ -26,7 +25,7 @@ func (m *MapProviderImpl) BuildMap(chunk entities.Chunk) entities.Map {
 	for _, word := range words {
 		data[word]++
 	}
-	fmt.Println(data)
+
 	return entities.Map{Data: data, Err: nil}
 }
 
