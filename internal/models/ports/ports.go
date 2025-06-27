@@ -1,7 +1,6 @@
 package ports
 
 import (
-	"io"
 	"iter"
 
 	"word-frequency-analyzer/internal/models/entities"
@@ -12,12 +11,7 @@ type PipelineRunner interface {
 }
 type FileReader interface {
 	ListTextFiles() ([]string, error)
-	Iterator(files []string) iter.Seq[entities.Chunk]
-}
-
-type ChunkSplitter interface {
-	Init(f io.Reader)
-	Iterator() iter.Seq[entities.Chunk]
+	Iterator(filename string) iter.Seq[entities.Chunk]
 }
 
 // WordExtractor извлекает слова из текста

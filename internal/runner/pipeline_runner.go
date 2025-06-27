@@ -24,16 +24,16 @@ func NewPipelineRunner(fileReader ports.FileReader, fileWriter ports.FileWriter,
 	}
 }
 
-func (r *PipelineRunnerImpl) generator(doneCh <-chan struct{}, files []string) <-chan entities.Chunk {
-	dataStream := make(chan entities.Chunk)
+func (r *PipelineRunnerImpl) generator(doneCh <-chan struct{}, files []string) <-chan string {
+	dataStream := make(chan string)
 
 	go func() {
 		defer close(dataStream)
-		for res := range r.fileReader.Iterator(files) {
+		for _, file := range files {
 			select {
 			case <-doneCh:
 				return
-			case dataStream <- res:
+			case dataStream <- file:
 			}
 		}
 	}()
@@ -41,7 +41,72 @@ func (r *PipelineRunnerImpl) generator(doneCh <-chan struct{}, files []string) <
 	return dataStream
 }
 
-func (r *PipelineRunnerImpl) work(doneCh <-chan struct{}, inputCh <-chan entities.Chunk) <-chan entities.Map {
+func (r *PipelineRunnerImpl) workReadFile(doneCh <-chan struct{}, inputCh <-chan string) <-chan entities.Chunk {
+	resultStream := make(chan entities.Chunk)
+
+	go func() {
+		defer close(resultStream)
+		for {
+			select {
+			case <-doneCh:
+				return
+			case filename, ok := <-inputCh:
+				if !ok {
+					return
+				}
+				for chunk := range r.fileReader.Iterator(filename) {
+					select {
+					case <-doneCh:
+						return
+					case resultStream <- chunk:
+					}
+				}
+			}
+		}
+	}()
+
+	return resultStream
+}
+
+func (r *PipelineRunnerImpl) fanOutReadFile(doneCh <-chan struct{}, inputCh <-chan string) []<-chan entities.Chunk {
+	resultChannels := make([]<-chan entities.Chunk, r.workersCount/2)
+
+	for i := 0; i < r.workersCount/2; i++ {
+		resultChannels[i] = r.workReadFile(doneCh, inputCh)
+	}
+
+	return resultChannels
+}
+
+func (r *PipelineRunnerImpl) fanInReadFile(doneCh <-chan struct{}, channels ...<-chan entities.Chunk) <-chan entities.Chunk {
+	finalStream := make(chan entities.Chunk)
+	var wg sync.WaitGroup
+
+	for _, ch := range channels {
+		chCopy := ch
+		wg.Add(1)
+
+		go func() {
+			defer wg.Done()
+			for value := range chCopy {
+				select {
+				case <-doneCh:
+					return
+				case finalStream <- value:
+				}
+			}
+		}()
+	}
+
+	go func() {
+		wg.Wait()
+		close(finalStream)
+	}()
+
+	return finalStream
+}
+
+func (r *PipelineRunnerImpl) workBuildMap(doneCh <-chan struct{}, inputCh <-chan entities.Chunk) <-chan entities.Map {
 	resultStream := make(chan entities.Map)
 
 	go func() {
@@ -69,17 +134,17 @@ func (r *PipelineRunnerImpl) work(doneCh <-chan struct{}, inputCh <-chan entitie
 	return resultStream
 }
 
-func (r *PipelineRunnerImpl) fanOut(doneCh <-chan struct{}, inputCh <-chan entities.Chunk) []<-chan entities.Map {
-	resultChannels := make([]<-chan entities.Map, r.workersCount)
+func (r *PipelineRunnerImpl) fanOutBuildMap(doneCh <-chan struct{}, inputCh <-chan entities.Chunk) []<-chan entities.Map {
+	resultChannels := make([]<-chan entities.Map, r.workersCount/2)
 
-	for i := 0; i < r.workersCount; i++ {
-		resultChannels[i] = r.work(doneCh, inputCh)
+	for i := 0; i < r.workersCount/2; i++ {
+		resultChannels[i] = r.workBuildMap(doneCh, inputCh)
 	}
 
 	return resultChannels
 }
 
-func (r *PipelineRunnerImpl) fanIn(doneCh <-chan struct{}, channels ...<-chan entities.Map) <-chan entities.Map {
+func (r *PipelineRunnerImpl) fanInBuildMap(doneCh <-chan struct{}, channels ...<-chan entities.Map) <-chan entities.Map {
 	finalStream := make(chan entities.Map)
 	var wg sync.WaitGroup
 
@@ -137,11 +202,17 @@ func (r *PipelineRunnerImpl) Run() error {
 
 	inputCh := r.generator(doneCh, files)
 
-	// создаем N горутин work с помощью fanOut
-	channels := r.fanOut(doneCh, inputCh)
+	// создаем N/2 горутин ReadFile с помощью fanOut
+	channelsChunk := r.fanOutReadFile(doneCh, inputCh)
 
 	// объединяем результаты из всех каналов
-	ResultCh := r.fanIn(doneCh, channels...)
+	channelChunk := r.fanInReadFile(doneCh, channelsChunk...)
+
+	// создаем N/2 горутин BuildMap с помощью fanOut
+	channelsMap := r.fanOutBuildMap(doneCh, channelChunk)
+
+	// объединяем результаты из всех каналов
+	ResultCh := r.fanInBuildMap(doneCh, channelsMap...)
 
 	return r.counter(ResultCh)
 }

@@ -7,18 +7,17 @@ import (
 	"strings"
 
 	"word-frequency-analyzer/internal/models/entities"
-	"word-frequency-analyzer/internal/models/ports"
 )
 
 type FileReaderImpl struct {
-	path        string
-	chunkReader ports.ChunkSplitter
+	path      string
+	chunkSize int
 }
 
-func NewFileReader(chunkReader ports.ChunkSplitter, path string) *FileReaderImpl {
+func NewFileReader(path string, chunkSize int) *FileReaderImpl {
 	return &FileReaderImpl{
-		path:        path,
-		chunkReader: chunkReader,
+		path:      path,
+		chunkSize: chunkSize,
 	}
 }
 
@@ -40,27 +39,22 @@ func (p *FileReaderImpl) ListTextFiles() ([]string, error) {
 	return textFiles, err
 }
 
-func (p *FileReaderImpl) Iterator(files []string) iter.Seq[entities.Chunk] {
+func (p *FileReaderImpl) Iterator(filename string) iter.Seq[entities.Chunk] {
 	return func(yield func(chunk entities.Chunk) bool) {
-		for _, filename := range files {
-			f, err := os.Open(filename)
-			if err != nil {
-				if !yield(entities.Chunk{Data: nil, Err: err}) {
-					return
-				}
-				continue
+		f, err := os.Open(filename)
+		if err != nil {
+			if !yield(entities.Chunk{Data: nil, Err: err}) {
+				return
 			}
-
-			func() {
-				defer f.Close()
-
-				p.chunkReader.Init(f)
-				for res := range p.chunkReader.Iterator() {
-					if !yield(res) {
-						return
-					}
-				}
-			}()
 		}
+		defer f.Close()
+
+		chunkReader := newChunkReader(f, p.chunkSize)
+		for res := range chunkReader.iterator() {
+			if !yield(res) {
+				return
+			}
+		}
+
 	}
 }

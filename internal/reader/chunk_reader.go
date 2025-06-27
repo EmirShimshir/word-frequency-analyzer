@@ -1,4 +1,4 @@
-package splitter
+package reader
 
 import (
 	"bytes"
@@ -8,31 +8,27 @@ import (
 	"word-frequency-analyzer/internal/models/entities"
 )
 
-type ChunkSplitterImpl struct {
+type chunkReader struct {
 	r         io.Reader
 	buf       []byte // остаток от прошлого чтения
 	chunkSize int
 }
 
-func NewChunkSplitter(chunkSize int) *ChunkSplitterImpl {
-	return &ChunkSplitterImpl{
+func newChunkReader(f io.Reader, chunkSize int) *chunkReader {
+	return &chunkReader{
+		r:         f,
 		chunkSize: chunkSize,
 	}
 }
 
-func (r *ChunkSplitterImpl) Init(f io.Reader) {
-	r.r = f
-	r.buf = nil
-}
-
-func (rc *ChunkSplitterImpl) lastIndexByte(data []byte) int {
+func (rc *chunkReader) lastIndexByte(data []byte) int {
 	return max(bytes.LastIndexByte(data, ' '),
 		bytes.LastIndexByte(data, '\n'),
 		bytes.LastIndexByte(data, '\t'),
 		bytes.LastIndexByte(data, '\r'))
 }
 
-func (rc *ChunkSplitterImpl) readChunk() ([]byte, error) {
+func (rc *chunkReader) readChunk() ([]byte, error) {
 	tmp := make([]byte, rc.chunkSize)
 	n, err := rc.r.Read(tmp)
 	if n == 0 && err != nil {
@@ -53,7 +49,7 @@ func (rc *ChunkSplitterImpl) readChunk() ([]byte, error) {
 }
 
 // Итератор-обёртка: возвращает Chunk
-func (rc *ChunkSplitterImpl) Iterator() iter.Seq[entities.Chunk] {
+func (rc *chunkReader) iterator() iter.Seq[entities.Chunk] {
 	return func(yield func(entities.Chunk) bool) {
 		for {
 			chunk, err := rc.readChunk()

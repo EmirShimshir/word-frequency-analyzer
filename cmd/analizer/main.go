@@ -10,7 +10,6 @@ import (
 	"word-frequency-analyzer/internal/provider"
 	"word-frequency-analyzer/internal/reader"
 	"word-frequency-analyzer/internal/runner"
-	"word-frequency-analyzer/internal/splitter"
 	"word-frequency-analyzer/internal/writer"
 )
 
@@ -39,8 +38,7 @@ func main() {
 	}
 
 	// Создаем все компоненты
-	ChunkSplitter := splitter.NewChunkSplitter(defaultChunkSize)
-	fileReader := reader.NewFileReader(ChunkSplitter, *dirPath)
+	fileReader := reader.NewFileReader(*dirPath, defaultChunkSize)
 
 	wordExtractor := extractor.NewRegexWordExtractor(*minWordLen)
 	mapProvider := provider.NewMapProvider(wordExtractor, *topCount)
