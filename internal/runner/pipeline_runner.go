@@ -3,6 +3,7 @@ package runner
 import (
 	"fmt"
 	"sync"
+
 	"word-frequency-analyzer/internal/models/entities"
 	"word-frequency-analyzer/internal/models/ports"
 )

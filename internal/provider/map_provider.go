@@ -2,6 +2,7 @@ package provider
 
 import (
 	"sort"
+
 	"word-frequency-analyzer/internal/models/entities"
 	"word-frequency-analyzer/internal/models/ports"
 )
