@@ -65,7 +65,7 @@ func (rc *ChunkSplitterImpl) Iterator() iter.Seq[entities.Chunk] {
 
 			if err == io.EOF {
 				if chunk == nil && len(rc.buf) > 0 {
-					if !yield(entities.Chunk{Data: rc.buf, Err: io.EOF}) {
+					if !yield(entities.Chunk{Data: rc.buf, Err: nil}) {
 						return
 					}
 				}

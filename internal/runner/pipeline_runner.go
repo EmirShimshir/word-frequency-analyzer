@@ -115,6 +115,7 @@ func (r *PipelineRunnerImpl) counter(ch <-chan entities.Map) error {
 	for m := range ch {
 		if m.Err != nil {
 			fmt.Printf("Error: %v\n", m.Err) // вывод в stdout
+			continue
 		}
 
 		r.mapProvider.MergeMap(final, m)
